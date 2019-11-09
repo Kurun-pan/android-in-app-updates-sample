@@ -11,6 +11,8 @@ import com.google.android.play.core.install.InstallStateUpdatedListener
 import com.google.android.play.core.install.model.AppUpdateType
 import com.google.android.play.core.install.model.InstallStatus
 import com.google.android.play.core.install.model.UpdateAvailability
+import dagger.android.AndroidInjection
+import javax.inject.Inject
 
 class MainActivity : AppCompatActivity() {
 
@@ -19,14 +21,18 @@ class MainActivity : AppCompatActivity() {
         const val REQUEST_UPDATE_CODE = 1
     }
 
-    private lateinit var alertDialog: AlertDialog
-    private lateinit var appUpdateManager: AppUpdateManager
-    private lateinit var installStateUpdatedListener: InstallStateUpdatedListener
+    lateinit var alertDialog: AlertDialog
+    lateinit var installStateUpdatedListener: InstallStateUpdatedListener
+
+    @Inject
+    lateinit var appUpdateManager: AppUpdateManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
 
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        AndroidInjection.inject(this)
 
         updateChecker()
     }
@@ -48,7 +54,6 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
 
         appUpdateManager.appUpdateInfo.addOnSuccessListener { appUpdateInfo ->
-
             if (appUpdateInfo.isUpdateTypeAllowed(AppUpdateType.FLEXIBLE)) {
                 // If the update is downloaded but not installed,
                 // notify the user to complete the update.
@@ -72,7 +77,6 @@ class MainActivity : AppCompatActivity() {
     private fun updateChecker() {
 
         appUpdateManager = AppUpdateManagerFactory.create(this)
-
         installStateUpdatedListener = InstallStateUpdatedListener { installState ->
             when (installState.installStatus()) {
                 InstallStatus.DOWNLOADED -> {
@@ -83,6 +87,9 @@ class MainActivity : AppCompatActivity() {
                     Log.d(TAG, "Installed")
                     appUpdateManager.unregisterListener(installStateUpdatedListener)
                 }
+                else -> {
+                    Log.d(TAG, "installStatus = " + installState.installStatus())
+                }
             }
         }
         appUpdateManager.registerListener(installStateUpdatedListener)
@@ -92,19 +99,17 @@ class MainActivity : AppCompatActivity() {
             when (appUpdateInfo.updateAvailability()) {
                 UpdateAvailability.UPDATE_AVAILABLE -> {
                     val updateTypes = arrayOf(AppUpdateType.FLEXIBLE, AppUpdateType.IMMEDIATE)
-                    var targetType = -1
-
                     run loop@{
                         updateTypes.forEach { type ->
                             if (appUpdateInfo.isUpdateTypeAllowed(type)) {
-                                targetType = type
+                                appUpdateManager.startUpdateFlowForResult(appUpdateInfo, type, this, REQUEST_UPDATE_CODE)
                                 return@loop
                             }
                         }
                     }
-
-                    if (targetType != -1)
-                        appUpdateManager.startUpdateFlowForResult(appUpdateInfo, targetType, this, REQUEST_UPDATE_CODE)
+                }
+                else -> {
+                    Log.d(TAG, "updateAvailability = " + appUpdateInfo.updateAvailability())
                 }
             }
         }

@@ -4,7 +4,7 @@
     package="com.example.in_app_updates_sample">
 
     <application
-        android:name=".UpdateApplication"
+        android:name=".UpdatesApplication"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"

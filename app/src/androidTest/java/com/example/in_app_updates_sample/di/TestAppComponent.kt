@@ -1,22 +1,18 @@
 package com.example.in_app_updates_sample.di
 
-import android.app.Application
-import dagger.BindsInstance
+import com.example.in_app_updates_sample.UpdatesApplication
+import com.google.android.play.core.appupdate.testing.FakeAppUpdateManager
 import dagger.Component
 import dagger.android.AndroidInjectionModule
 import dagger.android.AndroidInjector
+import javax.inject.Singleton
 
-@Component(modules = [ActivityModule::class, TestAppModule::class, AndroidInjectionModule::class])
-interface TestAppComponent: AndroidInjector<TestApplication> {
+@Singleton
+@Component(modules = [AndroidInjectionModule::class, ActivityModule::class, TestAppModule::class])
+interface TestAppComponent : AppComponent {
 
-    @Component.Builder
-    interface Builder {
+    @Component.Factory
+    abstract class Factory : AndroidInjector.Factory<UpdatesApplication>
 
-        fun appModule(appModule: TestAppModule): Builder
-
-        @BindsInstance
-        fun application(app: Application): Builder
-
-        fun build(): AndroidInjector<TestApplication>
-    }
+    fun fakeAppUpdateManager(): FakeAppUpdateManager
 }

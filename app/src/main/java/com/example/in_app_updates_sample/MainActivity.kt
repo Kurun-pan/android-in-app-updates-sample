@@ -5,13 +5,16 @@ import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
 import androidx.appcompat.app.AlertDialog
+import com.google.android.material.snackbar.Snackbar
 import com.google.android.play.core.appupdate.AppUpdateManager
 import com.google.android.play.core.appupdate.AppUpdateManagerFactory
 import com.google.android.play.core.install.InstallStateUpdatedListener
 import com.google.android.play.core.install.model.AppUpdateType
 import com.google.android.play.core.install.model.InstallStatus
 import com.google.android.play.core.install.model.UpdateAvailability
+import com.google.android.play.core.tasks.OnSuccessListener
 import dagger.android.AndroidInjection
+import java.util.concurrent.Executor
 import javax.inject.Inject
 
 class MainActivity : AppCompatActivity() {
@@ -21,18 +24,19 @@ class MainActivity : AppCompatActivity() {
         const val REQUEST_UPDATE_CODE = 1
     }
 
-    lateinit var alertDialog: AlertDialog
     lateinit var installStateUpdatedListener: InstallStateUpdatedListener
 
     @Inject
     lateinit var appUpdateManager: AppUpdateManager
 
+    @Inject
+    lateinit var playServiceExecutor: Executor
+
     override fun onCreate(savedInstanceState: Bundle?) {
 
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
-
         AndroidInjection.inject(this)
+        setContentView(R.layout.activity_main)
 
         updateChecker()
     }
@@ -53,7 +57,7 @@ class MainActivity : AppCompatActivity() {
 
         super.onResume()
 
-        appUpdateManager.appUpdateInfo.addOnSuccessListener { appUpdateInfo ->
+        appUpdateManager.appUpdateInfo.addOnSuccessListener(playServiceExecutor, OnSuccessListener { appUpdateInfo ->
             if (appUpdateInfo.isUpdateTypeAllowed(AppUpdateType.FLEXIBLE)) {
                 // If the update is downloaded but not installed,
                 // notify the user to complete the update.
@@ -71,12 +75,12 @@ class MainActivity : AppCompatActivity() {
                     )
                 }
             }
-        }
+        })
     }
 
     private fun updateChecker() {
 
-        appUpdateManager = AppUpdateManagerFactory.create(this)
+        //appUpdateManager = AppUpdateManagerFactory.create(this)
         installStateUpdatedListener = InstallStateUpdatedListener { installState ->
             when (installState.installStatus()) {
                 InstallStatus.DOWNLOADED -> {
@@ -95,7 +99,7 @@ class MainActivity : AppCompatActivity() {
         appUpdateManager.registerListener(installStateUpdatedListener)
 
         val appUpdateInfoTask = appUpdateManager.appUpdateInfo
-        appUpdateInfoTask.addOnSuccessListener { appUpdateInfo ->
+        appUpdateInfoTask.addOnSuccessListener(playServiceExecutor, OnSuccessListener { appUpdateInfo ->
             when (appUpdateInfo.updateAvailability()) {
                 UpdateAvailability.UPDATE_AVAILABLE -> {
                     val updateTypes = arrayOf(AppUpdateType.FLEXIBLE, AppUpdateType.IMMEDIATE)
@@ -112,21 +116,18 @@ class MainActivity : AppCompatActivity() {
                     Log.d(TAG, "updateAvailability = " + appUpdateInfo.updateAvailability())
                 }
             }
-        }
+        })
     }
 
     private fun updaterDownloadCompleted() {
 
-        if (alertDialog.isShowing)
-            return
-
-        alertDialog = AlertDialog.Builder(this)
-            .setTitle("Just now restart ...")
-            .setMessage("An update has just been downloaded.")
-            .setCancelable(false)
-            .setPositiveButton(android.R.string.ok) { dialog, which ->
-                // automatically install and restart app
-                appUpdateManager.completeUpdate()
-            }.show()
+        Snackbar.make(
+            findViewById(R.id.activity_main_layout),
+            "An update has just been downloaded.",
+            Snackbar.LENGTH_INDEFINITE
+        ).apply {
+            setAction("RESTART") { appUpdateManager.completeUpdate() }
+            show()
+        }
     }
 }
